@@ -38,8 +38,12 @@ PSECT udata_shr		    ; Memoria compartida
     
 PSECT udata_bank0		; Variables almacenadas en el banco 0
     segundos:		DS  1
+    segundos_t:		DS  1
     minutos:		DS  1
+    minutos_t:		DS  1
+    minutos_a:		DS  1
     horas:		DS  1
+    horas_a:		DS  1
     dias:		DS  1
     meses:		DS  1
     unidades_s:		DS  1
@@ -52,12 +56,24 @@ PSECT udata_bank0		; Variables almacenadas en el banco 0
     decenas_d:		DS  1
     unidades_mes:	DS  1
     decenas_mes:	DS  1
+    unidades_st:	DS  1
+    decenas_st:		DS  1
+    unidades_mt:	DS  1
+    decenas_mt:		DS  1
+    unidades_ma:	DS  1
+    decenas_ma:		DS  1
+    unidades_ha:	DS  1
+    decenas_ha:		DS  1
     banderas:		DS  1
     valor_s:		DS  1
+    valor_st:		DS  1
     valor_m:		DS  1
+    valor_mt:		DS  1
     valor_h:		DS  1
     valor_d:		DS  1
     valor_mes:		DS  1
+    valor_ha:		DS  1
+    valor_ma:		DS  1
     veces_us:		DS  1
     veces_ds:		DS  1
     veces_um:		DS  1
@@ -68,6 +84,14 @@ PSECT udata_bank0		; Variables almacenadas en el banco 0
     veces_dd:		DS  1
     veces_umes:		DS  1
     veces_dmes:		DS  1
+    veces_ust:		DS  1
+    veces_dst:		DS  1
+    veces_umt:		DS  1
+    veces_dmt:		DS  1
+    veces_uma:		DS  1
+    veces_dma:		DS  1
+    veces_uha:		DS  1
+    veces_dha:		DS  1
     diez:		DS  1
     uno:		DS  1
     cont_1:		DS  1
@@ -132,6 +156,24 @@ loop:
     sublw   0x3C
     btfsc   STATUS,	2	; Verificar si segundos = 60
     call    minuto_complete
+    
+    btfsc   segundos_t,	7
+    decf    minutos_t,	1
+    movlw   0x3B
+    btfsc   segundos_t,	7
+    movwf   segundos_t		; Verificar si segundos de timer = 0
+    
+    movf    segundos_t,	1
+    btfss   STATUS,	2
+    goto    $+4
+    movf    minutos_t,	1
+    btfsc   STATUS,	2
+    call    timer_complete	; Verificar si el timer se completó 
+    
+    btfss   PORTA,	4
+    goto    $+5
+    btfsc   bandera_config,   0
+    call    apagar_alarma
     
     movf    minutos,	0
     sublw   0x3C
@@ -200,20 +242,6 @@ loop_reloj:
     clrf    veces_dm
     clrf    veces_uh
     clrf    veces_dh
-    
-    ;movf    diez,   0
-    ;subwf   valor_s,  1
-    ;incf    veces_ds,	1
-    ;btfsc   STATUS, 0
-    ;goto    $-3
-    ;call    check_decenas_s
-
-    ;movf    uno,    0
-    ;subwf   valor_s,  1
-    ;incf    veces_us,	1
-    ;btfsc   STATUS, 0
-    ;goto    $-3
-    ;call    check_unidades_s
     
     movf    diez,   0
     subwf   valor_m,  1
@@ -300,7 +328,45 @@ loop_alarma:
     bsf	    PORTA,	2
     bcf	    PORTA,	3
     
-    call    set_display_S1
+    clrf    veces_uma
+    clrf    veces_dma
+    clrf    veces_uha
+    clrf    veces_dha
+    
+    movf    minutos_a,	0
+    movwf   valor_ma
+    movf    horas_a,	0
+    movwf   valor_ha
+    
+    movf    diez,   0
+    subwf   valor_ma,  1
+    incf    veces_dma,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_decenas_ma
+
+    movf    uno,    0
+    subwf   valor_ma,  1
+    incf    veces_uma,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_unidades_ma
+    
+    movf    diez,   0
+    subwf   valor_ha,  1
+    incf    veces_dha,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_decenas_ha
+
+    movf    uno,    0
+    subwf   valor_ha,  1
+    incf    veces_uha,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_unidades_ha
+    
+    call    set_display_S3
     goto    loop
     
 loop_timer:
@@ -309,7 +375,45 @@ loop_timer:
     bcf	    PORTA,	2
     bsf	    PORTA,	3
     
-    call    set_display_S0
+    clrf    veces_ust
+    clrf    veces_dst
+    clrf    veces_umt
+    clrf    veces_dmt
+    
+    movf    segundos_t,	0
+    movwf   valor_st
+    movf    minutos_t,	0
+    movwf   valor_mt
+    
+    movf    diez,   0
+    subwf   valor_st,  1
+    incf    veces_dst,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_decenas_st
+
+    movf    uno,    0
+    subwf   valor_st,  1
+    incf    veces_ust,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_unidades_st
+    
+    movf    diez,   0
+    subwf   valor_mt,  1
+    incf    veces_dmt,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_decenas_mt
+
+    movf    uno,    0
+    subwf   valor_mt,  1
+    incf    veces_umt,	1
+    btfsc   STATUS, 0
+    goto    $-3
+    call    check_unidades_mt
+    
+    call    set_display_S4
     goto    loop
     
 ;--------------- Subrutinas ------------------
@@ -386,6 +490,15 @@ config_IO:
     movwf   num_config
     movlw   0x00
     movwf   config_state
+    movlw   0x05
+    movwf   segundos_t
+    movlw   0x00
+    movwf   minutos_t
+    movlw   0x05
+    movwf   minutos_a
+    movlw   0x0A
+    movwf   horas_a
+    return
     
 config_clk:
     banksel OSCCON	    ; cambiamos a banco de OSCCON
@@ -570,19 +683,55 @@ set_display_S0:
     return    
     
 set_display_S1:
-    movf    unidades_d,	w 
+    movf    unidades_mes,	w 
     call    tabla
     movwf   display+1
     
-    movf    decenas_d,	w
+    movf    decenas_mes,	w
     call    tabla
     movwf   display+2
     
-    movf    unidades_mes,   w
+    movf    unidades_d,   w
     call    tabla
     movwf   display+3
     
-    movf    decenas_mes,    w
+    movf    decenas_d,    w
+    call    tabla
+    movwf   display
+    return      
+    
+set_display_S3:
+    movf    unidades_ma,	w 
+    call    tabla
+    movwf   display+1
+    
+    movf    decenas_ma,	w
+    call    tabla
+    movwf   display+2
+    
+    movf    unidades_ha,   w
+    call    tabla
+    movwf   display+3
+    
+    movf    decenas_ha,    w
+    call    tabla
+    movwf   display
+    return    
+    
+set_display_S4:
+    movf    unidades_st,	w 
+    call    tabla
+    movwf   display+1
+    
+    movf    decenas_st,	w
+    call    tabla
+    movwf   display+2
+    
+    movf    unidades_mt,   w
+    call    tabla
+    movwf   display+3
+    
+    movf    decenas_mt,    w
     call    tabla
     movwf   display
     return      
@@ -713,9 +862,78 @@ check_unidades_mes:
     movwf   unidades_mes
     return  
     
+check_decenas_st:
+    decf    veces_dst,	1
+    movf    diez,   0
+    addwf   valor_st,  1
+    movf    veces_dst,	0
+    movwf   decenas_st
+    return
+    
+check_unidades_st:
+    decf    veces_ust,	1
+    movf    uno,    0
+    addwf   valor_st,  1
+    movf    veces_ust,	0
+    movwf   unidades_st
+    return 
+    
+check_decenas_mt:
+    decf    veces_dmt,	1
+    movf    diez,   0
+    addwf   valor_mt,  1
+    movf    veces_dmt,	0
+    movwf   decenas_mt
+    return
+    
+check_unidades_mt:
+    decf    veces_umt,	1
+    movf    uno,    0
+    addwf   valor_mt,  1
+    movf    veces_umt,	0
+    movwf   unidades_mt
+    return 
+    
+check_decenas_ma:
+    decf    veces_dma,	1
+    movf    diez,   0
+    addwf   valor_ma,  1
+    movf    veces_dma,	0
+    movwf   decenas_ma
+    return
+    
+check_unidades_ma:
+    decf    veces_uma,	1
+    movf    uno,    0
+    addwf   valor_ma,  1
+    movf    veces_uma,	0
+    movwf   unidades_ma
+    return 
+    
+check_decenas_ha:
+    decf    veces_dha,	1
+    movf    diez,   0
+    addwf   valor_ha,  1
+    movf    veces_dha,	0
+    movwf   decenas_ha
+    return
+    
+check_unidades_ha:
+    decf    veces_uha,	1
+    movf    uno,    0
+    addwf   valor_ha,  1
+    movf    veces_uha,	0
+    movwf   unidades_ha
+    return
+    
 complete1:
     clrf    cont_1
     incf    segundos,	1
+    btfsc   bandera_config, 0
+    return
+    btfss   config_state,   0
+    return
+    decf    segundos_t,	1
     return
     
 minuto_complete:
@@ -738,6 +956,21 @@ ano_complete:
     movwf   meses
     return
     
+timer_complete:
+    movlw   0x00
+    movwf   minutos_t
+    movlw   0x00
+    movwf   segundos_t
+    bsf	    PORTA,	4
+    bcf	    config_state,   0
+    return
+    
+apagar_alarma:
+    bcf	    PORTA,	4	; Apagar la alarma con B2
+    movlw   0x01
+    movwf   minutos_t
+    return
+    
 inc:
     btfss   bandera_config, 0
     return
@@ -752,7 +985,7 @@ inc:
 	btfsc   estados,	1
 	nop
 	btfsc   estados,	2
-	nop
+	goto	inc_st
 	goto    inc_min
 	
 	inc_min:
@@ -767,13 +1000,19 @@ inc:
 	    goto    $-1
 	    return
 	    
+	inc_st:
+	    incf    segundos_t
+	    btfss   PORTB,  2
+	    goto    $-1
+	    return
+	    
     config_2inc:
 	btfsc   estados,	0
 	goto	inc_mes    
 	btfsc   estados,	1
 	nop
 	btfsc   estados,	2
-	nop
+	goto	inc_mt
 	goto    inc_hr
 	
 	inc_hr:
@@ -784,6 +1023,12 @@ inc:
 	    
 	inc_mes:
 	    incf    meses
+	    btfss   PORTB,  2
+	    goto    $-1
+	    return
+	    
+	inc_mt:
+	    incf    minutos_t
 	    btfss   PORTB,  2
 	    goto    $-1
 	    return
@@ -802,7 +1047,7 @@ decr:
 	btfsc   estados,	1
 	nop
 	btfsc   estados,	2
-	nop
+	goto	dec_st
 	goto    dec_min
 	
 	dec_min:
@@ -817,13 +1062,19 @@ decr:
 	    goto    $-1
 	    return
 	    
+	dec_st:
+	    decf    segundos_t
+	    btfss   PORTB,	3
+	    goto    $-1
+	    return
+	    
     config_2dec:
 	btfsc   estados,	0
 	goto	dec_mes    
 	btfsc   estados,	1
 	nop
 	btfsc   estados,	2
-	nop
+	goto	dec_mt
 	goto    dec_hr
 	
 	dec_hr:
@@ -834,6 +1085,12 @@ decr:
 	    
 	dec_mes:
 	    decf    meses
+	    btfss   PORTB,	3
+	    goto    $-1
+	    return
+	    
+	dec_mt:
+	    decf    minutos_t
 	    btfss   PORTB,	3
 	    goto    $-1
 	    return
