@@ -11,13 +11,13 @@
   0h - 1h		(dist/default/production\RelojHMS.X.production.hex)
   8h - 2Bh		(dist/default/production\RelojHMS.X.production.hex)
   200h - 227h		(dist/default/production\RelojHMS.X.production.hex)
-  400h - 9E7h		(dist/default/production\RelojHMS.X.production.hex)
+  400h - A65h		(dist/default/production\RelojHMS.X.production.hex)
   400Eh - 4011h		(dist/default/production\RelojHMS.X.production.hex)
  Unused ranges:
   2h - 7h
   2Ch - 1FFh
   228h - 3FFh
-  9E8h - 400Dh
+  A66h - 400Dh
 
 ### Hex Memory Map ###
  Legend:
@@ -128,7 +128,15 @@
 000009B0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
 000009C0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
 000009D0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
-000009E0 | H1 H1 H1 H1 H1 H1 H1 H1 -- -- -- -- -- -- -- --
+000009E0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+000009F0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+00000A00 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+00000A10 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+00000A20 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+00000A30 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+00000A40 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+00000A50 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
+00000A60 | H1 H1 H1 H1 H1 H1 -- -- -- -- -- -- -- -- -- --
 ----------------------------------------------------------
 00004000 | -- -- -- -- -- -- -- -- -- -- -- -- -- -- H1 H1
 00004010 | H1 H1 -- -- -- -- -- -- -- -- -- -- -- -- -- --

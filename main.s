@@ -102,6 +102,7 @@ PSECT udata_bank0		; Variables almacenadas en el banco 0
     bandera_config:	DS  1
     num_config:		DS  1
     config_state:	DS  1
+    bandera_alarma:	DS  1
     display:		DS  4
 
 PSECT resVect, class = CODE, abs, delta = 2
@@ -171,27 +172,61 @@ loop:
     call    timer_complete	; Verificar si el timer se completó 
     
     btfss   PORTA,	4
-    goto    $+5
-    btfsc   bandera_config,   0
-    call    apagar_alarma
+    goto    $+3
+    btfsc   bandera_alarma,   0
+    call    apagar_alarma	; Apagar alarma
     
     movf    minutos,	0
     sublw   0x3C
     btfsc   STATUS,	2	; Verificar si minutos = 60
     call    hora_complete
     
+    movf    minutos_a,	0
+    sublw   0x3C
+    btfsc   STATUS,	2
+    clrf    minutos_a		; Verificar si minutos alarma = 60
+    
+    movf    horas_a,	0
+    sublw   0x18
+    btfsc   STATUS,	2
+    clrf    horas_a		; Verificar si horas alarma = 24
+    
     movf    horas,	0
     sublw   0x18
     btfsc   STATUS,	2
     call    dia_complete	; Verificar si horas = 24
+    
+    movf    minutos_t,	0
+    sublw   0x64
+    btfsc   STATUS,	2
+    call    timer_minmax	; Verificar si minutos timer = 99
+    
+    btfsc   minutos_t,  7
+    clrf    minutos_t		; Verificar si minutos timer es "negativo"
+    
+    movf    segundos_t,	0
+    sublw   0x3C
+    btfsc   STATUS,	2
+    call    timer_segmax	; Verificar si segundos timer = 60
+    
+    btfsc   segundos_t,	7
+    clrf    segundos_t		; Verificar si segundos timer es "negativo"
     
     movlw   0x3B
     btfsc   minutos,	7
     movwf   minutos		; Verificar si minutos es "negativo"
     
     movlw   0x3B
+    btfsc   minutos_a,	7
+    movwf   minutos_a		; Verificar si minutos alarma es "negativo"
+    
+    movlw   0x17
     btfsc   horas,	7
     movwf   horas		; Verificar si horas es "negativo"
+    
+    movlw   0x17
+    btfsc   horas_a,	7
+    movwf   horas_a		; Verificar si horas alarma es "negativo"
     
     movf    dias,	0
     sublw   0x20
@@ -492,12 +527,14 @@ config_IO:
     movwf   config_state
     movlw   0x05
     movwf   segundos_t
-    movlw   0x00
+    movlw   0x01
     movwf   minutos_t
     movlw   0x05
     movwf   minutos_a
     movlw   0x0A
     movwf   horas_a
+    movlw   0x00
+    movwf   bandera_alarma
     return
     
 config_clk:
@@ -655,12 +692,6 @@ cambiar_estado:
 configuracion:
     comf    bandera_config
     btfss   PORTB,  1
-    goto    $-1
-    return
-    
-change:
-    comf    config_state
-    btfss   PORTB,  4
     goto    $-1
     return
     
@@ -931,7 +962,7 @@ complete1:
     incf    segundos,	1
     btfsc   bandera_config, 0
     return
-    btfss   config_state,   0
+    btfss   bandera_alarma,   0
     return
     decf    segundos_t,	1
     return
@@ -956,23 +987,60 @@ ano_complete:
     movwf   meses
     return
     
+minutos_amax:
+    movlw   0x03B
+    movwf   minutos_a
+    return
+    
+horas_amax: 
+    movlw   0x17
+    movwf   horas_a
+    return
+    
 timer_complete:
     movlw   0x00
     movwf   minutos_t
     movlw   0x00
     movwf   segundos_t
     bsf	    PORTA,	4
-    bcf	    config_state,   0
+    bcf	    bandera_alarma,   0
     return
     
 apagar_alarma:
-    bcf	    PORTA,	4	; Apagar la alarma con B2
+    bcf	    PORTA,	4	; Apagar la alarma con B5
     movlw   0x01
     movwf   minutos_t
     return
     
+timer_minmax:
+    movlw   0x63
+    movwf   minutos_t
+    return
+    
+timer_segmax:
+    movlw   0x03B
+    movwf   segundos_t
+    return
+    
+change:
+    btfsc   bandera_config,	0
+    goto    state2
+    goto    state1
+    
+    state1:
+    comf    bandera_alarma
+    btfss   PORTB,  4
+    goto    $-1
+    return
+    
+    state2:
+    comf    config_state
+    btfss   PORTB,  4
+    goto    $-1
+    return
+    
 inc:
-    btfss   bandera_config, 0
+    btfss   bandera_config,	0
     return
     
     btfsc   config_state,	0
@@ -983,7 +1051,7 @@ inc:
 	btfsc   estados,	0
 	goto	inc_dias    
 	btfsc   estados,	1
-	nop
+	goto	inc_ma
 	btfsc   estados,	2
 	goto	inc_st
 	goto    inc_min
@@ -1000,6 +1068,12 @@ inc:
 	    goto    $-1
 	    return
 	    
+	inc_ma:
+	    incf    minutos_a
+	    btfss   PORTB,  2
+	    goto    $-1
+	    return
+	    
 	inc_st:
 	    incf    segundos_t
 	    btfss   PORTB,  2
@@ -1010,7 +1084,7 @@ inc:
 	btfsc   estados,	0
 	goto	inc_mes    
 	btfsc   estados,	1
-	nop
+	goto	inc_ha
 	btfsc   estados,	2
 	goto	inc_mt
 	goto    inc_hr
@@ -1025,6 +1099,12 @@ inc:
 	    incf    meses
 	    btfss   PORTB,  2
 	    goto    $-1
+	    return
+	    
+	inc_ha:
+	    incf    horas_a
+	    btfss   PORTB,  2
+	    goto    $+1
 	    return
 	    
 	inc_mt:
@@ -1045,7 +1125,7 @@ decr:
 	btfsc   estados,	0
 	goto	dec_dia    
 	btfsc   estados,	1
-	nop
+	goto	dec_ma
 	btfsc   estados,	2
 	goto	dec_st
 	goto    dec_min
@@ -1062,6 +1142,12 @@ decr:
 	    goto    $-1
 	    return
 	    
+	dec_ma:
+	    decf    minutos_a
+	    btfss   PORTB,	3
+	    goto    $-1
+	    return
+	    
 	dec_st:
 	    decf    segundos_t
 	    btfss   PORTB,	3
@@ -1072,7 +1158,7 @@ decr:
 	btfsc   estados,	0
 	goto	dec_mes    
 	btfsc   estados,	1
-	nop
+	goto	dec_ha
 	btfsc   estados,	2
 	goto	dec_mt
 	goto    dec_hr
@@ -1085,6 +1171,12 @@ decr:
 	    
 	dec_mes:
 	    decf    meses
+	    btfss   PORTB,	3
+	    goto    $-1
+	    return
+	    
+	dec_ha:
+	    decf    horas_a
 	    btfss   PORTB,	3
 	    goto    $-1
 	    return
