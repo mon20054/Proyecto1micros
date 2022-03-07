@@ -1,12 +1,13 @@
-
+    
 ; Archivo:	main.s
 ; Dispositivo:	PIC16F887
 ; Autor:	Javier Monzón 20054
 ; Compilador:	pic-as (v2.30), MPLABX V5.40
 ;
-; Programa:	Contador de 8 bits en el puerto B
-; Hardware:	LEDs en el puerto B y push buttons en el puerto A
+; Programa:	Reloj digital con modo hora, fecha, alarma y timer
+; Hardware:	LEDs en el puerto A y E, push-buttons en el puerto B
 ;		Displays de 7 segmentos en el puerto C
+;		Transistores en el puerto D
 ;
 ; Creado:	21 febrero 2022
 ; Última modificación: 21 febrero 2022
@@ -103,6 +104,7 @@ PSECT udata_bank0		; Variables almacenadas en el banco 0
     num_config:		DS  1
     config_state:	DS  1
     bandera_alarma:	DS  1
+    alarma_bandera:	DS  1
     display:		DS  4
 
 PSECT resVect, class = CODE, abs, delta = 2
@@ -164,6 +166,8 @@ loop:
     btfsc   segundos_t,	7
     movwf   segundos_t		; Verificar si segundos de timer = 0
     
+    btfsc   bandera_config,0
+    goto    $+7
     movf    segundos_t,	1
     btfss   STATUS,	2
     goto    $+4
@@ -174,7 +178,12 @@ loop:
     btfss   PORTA,	4
     goto    $+3
     btfsc   bandera_alarma,   0
-    call    apagar_alarma	; Apagar alarma
+    call    apagar_alarma	; Apagar alarma de timer
+    
+    btfss   PORTA,	4
+    goto    $+3
+    btfss   alarma_bandera, 0
+    call    alarma_off		; Apagar alarma 
     
     movf    minutos,	0
     sublw   0x3C
@@ -187,8 +196,8 @@ loop:
     clrf    minutos_a		; Verificar si minutos alarma = 60
     
     movf    horas_a,	0
-    sublw   0x18
-    btfsc   STATUS,	2
+    sublw   0x17
+    btfss   STATUS,	0
     clrf    horas_a		; Verificar si horas alarma = 24
     
     movf    horas,	0
@@ -228,11 +237,6 @@ loop:
     btfsc   horas_a,	7
     movwf   horas_a		; Verificar si horas alarma es "negativo"
     
-    movf    dias,	0
-    sublw   0x20
-    btfsc   STATUS,	2
-    clrf    dias		; Verificar si dias = 31
-    
     movf    meses,	0
     sublw   0x0D
     btfsc   STATUS,	2
@@ -245,6 +249,96 @@ loop:
     movlw   0x0C
     btfsc   meses,	7
     movwf   meses		; Verificar si meses es "negativo"
+    
+    btfss   bandera_config, 0
+    goto    $+8
+    movf    minutos_t,	    1
+    btfss   STATUS,	    2
+    goto    $+5
+    movf    segundos_t,	    1
+    movlw   0x01
+    btfsc   STATUS,	    2
+    movwf   segundos_t		; Timer mínimo 1 seg
+    
+    movf    minutos_t,	    0
+    sublw   0x64
+    btfsc   STATUS,	    0
+    goto    $+3
+    movlw   0x63
+    movwf   minutos_t		; Minutos timer max
+    
+    btfsc   bandera_config, 0
+    goto    $+11
+    btfss   alarma_bandera,0
+    goto    $+9
+    movf    horas_a,	0
+    xorwf   horas,	0
+    btfss   STATUS,	2
+    goto    $+4
+    movf    minutos_a,	0
+    xorwf   minutos,	0
+    btfsc   STATUS,	2
+    call    alarma_complete	; Verificar si alarma es igual a hora 
+    
+    movf    meses,	0
+    xorlw   0x01
+    btfsc   STATUS,	2
+    call    mes31		; Verificar si es enero
+    
+    movf    meses,	0
+    xorlw   0x02
+    btfsc   STATUS,	2
+    call    mes28		; Verificar si es febrero 
+    
+    movf    meses,	0
+    xorlw   0x03
+    btfsc   STATUS,	2
+    call    mes31		; Verificar si es marzo 
+    
+    movf    meses,	0
+    xorlw   0x04
+    btfsc   STATUS,	2
+    call    mes30		; Verificar si es abril
+    
+    movf    meses,	0
+    xorlw   0x05
+    btfsc   STATUS,	2
+    call    mes31		; Verificar si es mayo 
+    
+    movf    meses,	0
+    xorlw   0x06
+    btfsc   STATUS,	2
+    call    mes30		; Verificar si es junio 
+    
+    movf    meses,	0
+    xorlw   0x07
+    btfsc   STATUS,	2
+    call    mes31		; Verificar si es julio 
+    
+    movf    meses,	0
+    xorlw   0x08
+    btfsc   STATUS,	2
+    call    mes31		; Verificar si es agosto 
+    
+    movf    meses,	0
+    xorlw   0x09
+    btfsc   STATUS,	2
+    call    mes30		; Verificar si es septiembre
+    
+    movf    meses,	0
+    xorlw   0x0A
+    btfsc   STATUS,	2
+    call    mes31		; Verificar si es octubre 
+    
+    movf    meses,	0
+    xorlw   0x0B
+    btfsc   STATUS,	2
+    call    mes30		; Verificar si es noviembre 
+    
+    movf    meses,	0
+    xorlw   0x0C
+    btfsc   STATUS,	2
+    call    mes31		; Verificar si es diciembre
     
     movf    medio,	0
     movwf   PORTE
@@ -471,7 +565,7 @@ config_IO:
     clrf    PORTE
     movlw   0x00
     movwf   segundos	
-    movlw   0x3B
+    movlw   0x10
     movwf   minutos
     movlw   0x05
     movwf   horas
@@ -517,7 +611,7 @@ config_IO:
     movwf   estados
     movlw   0x0F
     movwf   dias
-    movlw   0x0B
+    movlw   0x06
     movwf   meses
     movlw   0xFE
     movwf   bandera_config
@@ -525,16 +619,18 @@ config_IO:
     movwf   num_config
     movlw   0x00
     movwf   config_state
-    movlw   0x05
+    movlw   0x00
     movwf   segundos_t
     movlw   0x01
     movwf   minutos_t
-    movlw   0x05
+    movlw   0x11
     movwf   minutos_a
-    movlw   0x0A
+    movlw   0x05
     movwf   horas_a
     movlw   0x00
     movwf   bandera_alarma
+    movlw   0x00
+    movwf   alarma_bandera
     return
     
 config_clk:
@@ -960,8 +1056,6 @@ check_unidades_ha:
 complete1:
     clrf    cont_1
     incf    segundos,	1
-    btfsc   bandera_config, 0
-    return
     btfss   bandera_alarma,   0
     return
     decf    segundos_t,	1
@@ -1006,10 +1100,22 @@ timer_complete:
     bcf	    bandera_alarma,   0
     return
     
+alarma_complete:
+    bsf	    PORTA,	4
+    return
+    
 apagar_alarma:
     bcf	    PORTA,	4	; Apagar la alarma con B5
     movlw   0x01
     movwf   minutos_t
+    movlw   0x00
+    movwf   segundos_t
+    bcf	    bandera_alarma,	0
+    return
+    
+alarma_off:
+    bcf	    PORTA,	4
+    bcf	    alarma_bandera, 0
     return
     
 timer_minmax:
@@ -1022,16 +1128,61 @@ timer_segmax:
     movwf   segundos_t
     return
     
+mes31:
+    movf    dias,   0
+    sublw   0x1F
+    btfsc   STATUS, 0
+    goto    $+4
+    movlw   0x01
+    movwf   dias
+    incf    meses,  1
+    return
+    
+mes28:
+    movf    dias,   0
+    sublw   0x1C
+    btfsc   STATUS, 0
+    goto    $+4
+    movlw   0x01
+    movwf   dias
+    incf    meses,  1
+    return
+    
+mes30:
+    movf    dias,   0
+    sublw   0x1E
+    btfsc   STATUS, 0
+    goto    $+4
+    movlw   0x01
+    movwf   dias
+    incf    meses,  1
+    return
+    
 change:
     btfsc   bandera_config,	0
     goto    state2
     goto    state1
     
     state1:
-    comf    bandera_alarma
-    btfss   PORTB,  4
-    goto    $-1
-    return
+	btfsc   estados,	0
+	goto	alarma_a    
+	btfsc   estados,	1
+	goto	alarma_a
+	btfsc   estados,	2
+	goto	timer_alarma
+	goto    alarma_a
+	
+	timer_alarma:
+	    comf    bandera_alarma
+	    btfss   PORTB,  4
+	    goto    $-1
+	    return
+	    
+	alarma_a:
+	    comf    alarma_bandera
+	    btfss   PORTB,  4
+	    goto    $-1
+	    return
     
     state2:
     comf    config_state
@@ -1104,7 +1255,7 @@ inc:
 	inc_ha:
 	    incf    horas_a
 	    btfss   PORTB,  2
-	    goto    $+1
+	    goto    $-1
 	    return
 	    
 	inc_mt:
@@ -1211,5 +1362,3 @@ tabla:
     retlw   0b10000111		; Valor para F en display de 7 segmentos
     
 END
-
-
