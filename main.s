@@ -33,7 +33,7 @@ PROCESSOR 16F887
   CONFIG  WRT = OFF             ; Protección de autoescritura por el programa desactivada 
     
 ; ------- VARIABLES EN MEMORIA --------
-PSECT udata_shr		    ; Memoria compartida
+PSECT udata_shr			; Memoria compartida
     wtemp:		DS  1
     status_temp:	DS  1
     
@@ -175,12 +175,12 @@ loop:
     btfsc   STATUS,	2
     call    timer_complete	; Verificar si el timer se completó 
     
-    btfss   PORTA,	4
-    goto    $+3
+    btfss   PORTA,	6
+    goto    $+7
     btfsc   bandera_alarma,   0
     call    apagar_alarma	; Apagar alarma de timer
     
-    btfss   PORTA,	4
+    btfss   PORTA,	6
     goto    $+3
     btfss   alarma_bandera, 0
     call    alarma_off		; Apagar alarma 
@@ -274,11 +274,23 @@ loop:
     movf    horas_a,	0
     xorwf   horas,	0
     btfss   STATUS,	2
-    goto    $+4
+    goto    $+5
     movf    minutos_a,	0
     xorwf   minutos,	0
     btfsc   STATUS,	2
     call    alarma_complete	; Verificar si alarma es igual a hora 
+    
+    btfsc   alarma_bandera, 0
+    goto    $+3   
+    bcf	    PORTA,	4
+    goto    $+2
+    bsf	    PORTA,	4	; Encender LED de alarma encendida
+    
+    btfsc   bandera_config, 0
+    goto    $+3
+    bcf	    PORTA,	5
+    goto    $+2
+    bsf	    PORTA,	5	; Encender LED de modo configuracion
     
     movf    meses,	0
     xorlw   0x01
@@ -343,16 +355,16 @@ loop:
     movf    medio,	0
     movwf   PORTE
     
-    btfsc   estados,	0
+    btfsc   estados,	0	; Estados = 001 -> Fecha
     goto    loop_fecha
-    btfsc   estados,	1
+    btfsc   estados,	1	; Estados = 010 -> Alarma
     goto    loop_alarma
-    btfsc   estados,	2
+    btfsc   estados,	2	; Estados = 100 -> Timer
     goto    loop_timer
-    goto    loop_reloj
+    goto    loop_reloj		; Estados = 000 -> Hora/reloj
     
 loop_reloj:
-    bsf	    PORTA,	0
+    bsf	    PORTA,	0	; LED indicador de modo hora/reloj
     bcf	    PORTA,	1
     bcf	    PORTA,	2
     bcf	    PORTA,	3
@@ -360,9 +372,9 @@ loop_reloj:
     movf    segundos,	0
     movwf   valor_s		; Almacenar el valor de segundos en valor
     movf    minutos,	0
-    movwf   valor_m
+    movwf   valor_m		; Almacenar el valor de minutos en valor
     movf    horas,	0
-    movwf   valor_h
+    movwf   valor_h		; Almacenar el valor de horas en valor
     
     ; Convertir a decimal 
     clrf    veces_us
@@ -377,41 +389,42 @@ loop_reloj:
     incf    veces_dm,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_m
+    call    check_decenas_m	; Obtener decenas de minutos
 
     movf    uno,    0
     subwf   valor_m,  1
     incf    veces_um,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_m
+    call    check_unidades_m	; Obtener unidades de minutos
     
     movf    diez,   0
     subwf   valor_h,  1
     incf    veces_dh,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_h
+    call    check_decenas_h	; Obtener decenas de horas
 
     movf    uno,    0
     subwf   valor_h,  1
     incf    veces_uh,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_h
+    call    check_unidades_h	; Obtener unidades de horas
    
-    call    set_display_S0
-    goto    loop
+    call    set_display_S0	; Setear display para mostrar horas y minutos
+    goto    loop		; Volver a loop principal 
     
 loop_fecha:
+    bsf	    PORTE,	2	; LEDs que cuentan segundos siempre encendidos para ser diagonal
     bcf	    PORTA,	0
-    bsf	    PORTA,	1
+    bsf	    PORTA,	1	; LED indicador de modo fecha
     bcf	    PORTA,	2
     bcf	    PORTA,	3
     
-    movf    dias,	0
+    movf    dias,	0	; Almacenar el valor de dias en valor
     movwf   valor_d
-    movf    meses,	0
+    movf    meses,	0	; Almacenar el valor de meses en valor
     movwf   valor_mes
     
     ; Convertir a decimal 
@@ -425,36 +438,36 @@ loop_fecha:
     incf    veces_dd,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_d
+    call    check_decenas_d	; Obtener decenas de dias
 
     movf    uno,    0
     subwf   valor_d,  1
     incf    veces_ud,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_d
+    call    check_unidades_d	; Obtener unidades de dias
     
     movf    diez,   0
     subwf   valor_mes,  1
     incf    veces_dmes,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_mes
+    call    check_decenas_mes	; Obtener decenas de mes
 
     movf    uno,    0
     subwf   valor_mes,  1
     incf    veces_umes,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_mes
+    call    check_unidades_mes	; Obtener unidades de mes
     
-    call    set_display_S1
-    goto    loop
+    call    set_display_S1	; Configurar display para mostrar mes y dia
+    goto    loop		; Volver a loop principal
     
 loop_alarma:
     bcf	    PORTA,	0
     bcf	    PORTA,	1
-    bsf	    PORTA,	2
+    bsf	    PORTA,	2	; LED indicador de modo alarma
     bcf	    PORTA,	3
     
     clrf    veces_uma
@@ -462,9 +475,9 @@ loop_alarma:
     clrf    veces_uha
     clrf    veces_dha
     
-    movf    minutos_a,	0
+    movf    minutos_a,	0	; Almacenar valor de minutos en valor
     movwf   valor_ma
-    movf    horas_a,	0
+    movf    horas_a,	0	; Almacenar el valor de horas en valor
     movwf   valor_ha
     
     movf    diez,   0
@@ -472,46 +485,46 @@ loop_alarma:
     incf    veces_dma,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_ma
+    call    check_decenas_ma	; Obtener decenas de minutos
 
     movf    uno,    0
     subwf   valor_ma,  1
     incf    veces_uma,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_ma
+    call    check_unidades_ma	; OBtener unidades de minutos
     
     movf    diez,   0
     subwf   valor_ha,  1
     incf    veces_dha,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_ha
+    call    check_decenas_ha	; Obtener deceas de horas
 
     movf    uno,    0
     subwf   valor_ha,  1
     incf    veces_uha,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_ha
-    
-    call    set_display_S3
-    goto    loop
+    call    check_unidades_ha	; Obtener unidades de horas
+	
+    call    set_display_S3	; Configurar display para mostrar horas y minutos de alarma
+    goto    loop		; Volver a loop principal 
     
 loop_timer:
     bcf	    PORTA,	0
     bcf	    PORTA,	1
     bcf	    PORTA,	2
-    bsf	    PORTA,	3
+    bsf	    PORTA,	3	; LED indicador de modo timer
     
     clrf    veces_ust
     clrf    veces_dst
     clrf    veces_umt
     clrf    veces_dmt
     
-    movf    segundos_t,	0
+    movf    segundos_t,	0	; Almacenar el valor de segundos en valor
     movwf   valor_st
-    movf    minutos_t,	0
+    movf    minutos_t,	0	; Almacenar el valor de minutos en valor
     movwf   valor_mt
     
     movf    diez,   0
@@ -519,31 +532,31 @@ loop_timer:
     incf    veces_dst,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_st
+    call    check_decenas_st	; Obtener decenas de segundos
 
     movf    uno,    0
     subwf   valor_st,  1
     incf    veces_ust,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_st
+    call    check_unidades_st	; Obtener unidades de segundos
     
     movf    diez,   0
     subwf   valor_mt,  1
     incf    veces_dmt,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_decenas_mt
+    call    check_decenas_mt	 ; Obtener decenas de minutos 
 
     movf    uno,    0
     subwf   valor_mt,  1
     incf    veces_umt,	1
     btfsc   STATUS, 0
     goto    $-3
-    call    check_unidades_mt
+    call    check_unidades_mt	; Obtener unidades de minutos 
     
-    call    set_display_S4
-    goto    loop
+    call    set_display_S4	; Configurar display para mostrar minutos y segundos de timer
+    goto    loop		; Volver a loop principal 
     
 ;--------------- Subrutinas ------------------
 config_IO:
@@ -730,23 +743,23 @@ t2:
     bcf	    TMR2IF	    ; Limpiar la bandera de tmr2
     return
     
-intB:
+intB:			    ; Interrupciones de puerto B
     btfss   PORTB,	0
-    call    cambiar_estado
+    call    cambiar_estado  ; Ver si fue B1
     btfss   PORTB,	1
-    call    configuracion
+    call    configuracion   ; Ver si fue B2
     btfss   PORTB,	2
-    call    inc
+    call    inc		    ; Ver si fue B3
     btfss   PORTB,	3
-    call    decr
+    call    decr	    ; Ver si fue B4
     btfss   PORTB,	4
-    call    change
-    bcf	    RBIF
+    call    change	    ; Ver si fue B5
+    bcf	    RBIF	    ; Limpiar bandera de puerto B
     return
     
 cambiar_estado:
-    btfsc   estados,	0
-    goto    S2_change
+    btfsc   estados,	0   ; Verificar en qué estado se encuentra la FSM
+    goto    S2_change	    ; para verificar cuál debería de ser el siguiente
     btfsc   estados,	1
     goto    S3_change
     btfsc   estados,	2
@@ -757,41 +770,31 @@ cambiar_estado:
 	bcf	    estados,	0
 	bcf	    estados,	1
 	bcf	    estados,	2
-	btfss	    PORTB,	0
-	goto	    $-4
 	return
     
     S1_change:
 	bsf	    estados,	0
 	bcf	    estados,	1
 	bcf	    estados,	2
-	btfss	    PORTB,	0
-	goto	    $-4
 	return
 
     S2_change:
 	bcf	    estados,	0
 	bsf	    estados,	1
 	bcf	    estados,	2
-	btfss	    PORTB,	0
-	goto	    $-4
 	return
 
     S3_change:
 	bcf	    estados,	0
 	bcf	    estados,	1
 	bsf	    estados,	2
-	btfss	    PORTB,	0
-	goto	    $-4
 	return
     
 configuracion:
-    comf    bandera_config
-    btfss   PORTB,  1
-    goto    $-1
+    comf    bandera_config	    ; Habilitar o deshabilitar bandera de configuraciones 
     return
     
-set_display_S0:
+set_display_S0:			    ; Mostrar en el display horas y minutos de reloj
     movf    unidades_m,	w 
     call    tabla
     movwf   display+1
@@ -809,7 +812,7 @@ set_display_S0:
     movwf   display
     return    
     
-set_display_S1:
+set_display_S1:			    ; Mostrar en el display dia y mes de fecha 
     movf    unidades_mes,	w 
     call    tabla
     movwf   display+1
@@ -827,7 +830,7 @@ set_display_S1:
     movwf   display
     return      
     
-set_display_S3:
+set_display_S3:			    ; Mostrar en el display hora y minutos de alarma 
     movf    unidades_ma,	w 
     call    tabla
     movwf   display+1
@@ -845,7 +848,7 @@ set_display_S3:
     movwf   display
     return    
     
-set_display_S4:
+set_display_S4:			    ; Mostrar en display minutos y segundos de timer
     movf    unidades_st,	w 
     call    tabla
     movwf   display+1
@@ -863,7 +866,7 @@ set_display_S4:
     movwf   display
     return      
     
-mostrar_valores:
+mostrar_valores:		    ; Multiplexado para displays de 7 segmentos 
     clrf    PORTD
     btfsc   banderas,	0
     goto    display_1
@@ -1053,7 +1056,7 @@ check_unidades_ha:
     movwf   unidades_ha
     return
     
-complete1:
+complete1:			; Contador de TMR1
     clrf    cont_1
     incf    segundos,	1
     btfss   bandera_alarma,   0
@@ -1061,27 +1064,29 @@ complete1:
     decf    segundos_t,	1
     return
     
-minuto_complete:
+minuto_complete:		; Se completó un minuto
     clrf    segundos
     incf    minutos,	1
-    return
+    btfsc   PORTA, 6
+    call    alarma_off		; Ver si la alarma estuvo encendida un minuto y apagarla
+    return	
     
-hora_complete:
+hora_complete:			; Se completó una hora
     clrf    minutos
     incf    horas,	1
     return
     
-dia_complete:
+dia_complete:			; Se completó un día 
     clrf    horas
     incf    dias,	1
     return
     
-ano_complete:
+ano_complete:			; Se complet+o un año
     movlw   0x01
     movwf   meses
     return
     
-minutos_amax:
+minutos_amax:			
     movlw   0x03B
     movwf   minutos_a
     return
@@ -1091,30 +1096,30 @@ horas_amax:
     movwf   horas_a
     return
     
-timer_complete:
-    movlw   0x00
+timer_complete:			; Se completó el timer
+    movlw   0x01		; Volver a cargar un minuto al timer
     movwf   minutos_t
     movlw   0x00
     movwf   segundos_t
-    bsf	    PORTA,	4
+    bsf	    PORTA,	6	; Encender alarma
     bcf	    bandera_alarma,   0
     return
     
-alarma_complete:
-    bsf	    PORTA,	4
+alarma_complete:		; Se completó la alarma
+    bsf	    PORTA,	6	; Emcemder alarma
     return
     
 apagar_alarma:
-    bcf	    PORTA,	4	; Apagar la alarma con B5
-    movlw   0x01
+    bcf	    PORTA,	6	; Apagar la alarma de timer con B5
+    movlw   0x01		; Volver a cargar un minuto al timer
     movwf   minutos_t
     movlw   0x00
     movwf   segundos_t
     bcf	    bandera_alarma,	0
     return
     
-alarma_off:
-    bcf	    PORTA,	4
+alarma_off:			; Apagar alarma con B5
+    bcf	    PORTA,	6
     bcf	    alarma_bandera, 0
     return
     
@@ -1124,11 +1129,11 @@ timer_minmax:
     return
     
 timer_segmax:
-    movlw   0x03B
+    movlw   0x00
     movwf   segundos_t
     return
     
-mes31:
+mes31:				; Subrutina para limitar meses de 31 días
     movf    dias,   0
     sublw   0x1F
     btfsc   STATUS, 0
@@ -1138,7 +1143,7 @@ mes31:
     incf    meses,  1
     return
     
-mes28:
+mes28:				; Subrutina para limitar febrero de 28 días
     movf    dias,   0
     sublw   0x1C
     btfsc   STATUS, 0
@@ -1148,7 +1153,7 @@ mes28:
     incf    meses,  1
     return
     
-mes30:
+mes30:				; Subrutina para limitar meses de 30 días
     movf    dias,   0
     sublw   0x1E
     btfsc   STATUS, 0
@@ -1158,7 +1163,7 @@ mes30:
     incf    meses,  1
     return
     
-change:
+change:				; Cambiar de modo configuración
     btfsc   bandera_config,	0
     goto    state2
     goto    state1
@@ -1173,24 +1178,18 @@ change:
 	goto    alarma_a
 	
 	timer_alarma:
-	    comf    bandera_alarma
-	    btfss   PORTB,  4
-	    goto    $-1
+	    comf    bandera_alarma, 1
 	    return
 	    
 	alarma_a:
-	    comf    alarma_bandera
-	    btfss   PORTB,  4
-	    goto    $-1
+	    comf    alarma_bandera, 1
 	    return
     
     state2:
-    comf    config_state
-    btfss   PORTB,  4
-    goto    $-1
+    comf    config_state,   1
     return
     
-inc:
+inc:				    ; Subrutina para inrementar en modo configuración
     btfss   bandera_config,	0
     return
     
@@ -1209,26 +1208,18 @@ inc:
 	
 	inc_min:
 	    incf    minutos
-	    btfss   PORTB,  2
-	    goto    $-1 
 	    return
 	    
 	inc_dias:
 	    incf    dias
-	    btfss   PORTB,  2
-	    goto    $-1
 	    return
 	    
 	inc_ma:
 	    incf    minutos_a
-	    btfss   PORTB,  2
-	    goto    $-1
 	    return
 	    
 	inc_st:
 	    incf    segundos_t
-	    btfss   PORTB,  2
-	    goto    $-1
 	    return
 	    
     config_2inc:
@@ -1242,29 +1233,21 @@ inc:
 	
 	inc_hr:
 	    incf    horas
-	    btfss   PORTB,  2
-	    goto    $-1
 	    return
 	    
 	inc_mes:
 	    incf    meses
-	    btfss   PORTB,  2
-	    goto    $-1
 	    return
 	    
 	inc_ha:
 	    incf    horas_a
-	    btfss   PORTB,  2
-	    goto    $-1
 	    return
 	    
 	inc_mt:
 	    incf    minutos_t
-	    btfss   PORTB,  2
-	    goto    $-1
 	    return
     
-decr:
+decr:					; Subrutina para decrementar en modo configuración 
     btfss   bandera_config, 0
     return
     
@@ -1283,26 +1266,18 @@ decr:
 	
 	dec_min:
 	    decf    minutos
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return
 	    
 	dec_dia:
 	    decf    dias
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return
 	    
 	dec_ma:
 	    decf    minutos_a
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return
 	    
 	dec_st:
 	    decf    segundos_t
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return
 	    
     config_2dec:
@@ -1316,49 +1291,41 @@ decr:
 	
 	dec_hr:
 	    decf    horas
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return 
 	    
 	dec_mes:
 	    decf    meses
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return
 	    
 	dec_ha:
 	    decf    horas_a
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return
 	    
 	dec_mt:
 	    decf    minutos_t
-	    btfss   PORTB,	3
-	    goto    $-1
 	    return
 	
 org 100h
-tabla:
+tabla:				; Tabla para obtener valores de display de 7 segmentos 
     clrf    PCLATH
     bsf	    PCLATH, 0
     andlw   0x0F
     addwf   PCL, 1		; Se suma el offset al PC y se almacena en dicho registro
-    retlw   0b11011101		; Valor para 0 en display de 7 segmentos
-    retlw   0b01010000		; Valor para 1 en display de 7 segmentos
+    retlw   0b11101101		; Valor para 0 en display de 7 segmentos
+    retlw   0b10100000		; Valor para 1 en display de 7 segmentos
     retlw   0b11001110		; Valor para 2 en display de 7 segmentos
-    retlw   0b11011010		; Valor para 3 en display de 7 segmentos
-    retlw   0b01010011		; Valor para 4 en display de 7 segmentos
-    retlw   0b10011011		; Valor para 5 en display de 7 segmentos 
-    retlw   0b10011111		; Valor para 6 en display de 7 segmentos 
-    retlw   0b11010000		; Valor para 7 en display de 7 segmentos 
-    retlw   0b11011111		; Valor para 8 en display de 7 segmentos
-    retlw   0b11010011		; Valor para 9 en display de 7 segmentos 
-    retlw   0b11010111		; Valor para A en display de 7 segmentos
-    retlw   0b00011111		; Valor para B en display de 7 segmentos
-    retlw   0b10001101		; Valor para C en display de 7 segmentos
-    retlw   0b01011110		; Valor para D en display de 7 segmentos
-    retlw   0b10001111		; Valor para E en display de 7 segmentos 
-    retlw   0b10000111		; Valor para F en display de 7 segmentos
+    retlw   0b11101010		; Valor para 3 en display de 7 segmentos
+    retlw   0b10100011		; Valor para 4 en display de 7 segmentos
+    retlw   0b01101011		; Valor para 5 en display de 7 segmentos 
+    retlw   0b01101111		; Valor para 6 en display de 7 segmentos 
+    retlw   0b11100000		; Valor para 7 en display de 7 segmentos 
+    retlw   0b11101111		; Valor para 8 en display de 7 segmentos
+    retlw   0b11100011		; Valor para 9 en display de 7 segmentos 
+    retlw   0b11100111		; Valor para A en display de 7 segmentos
+    retlw   0b00101111		; Valor para B en display de 7 segmentos
+    retlw   0b01001101		; Valor para C en display de 7 segmentos
+    retlw   0b10101110		; Valor para D en display de 7 segmentos
+    retlw   0b01001111		; Valor para E en display de 7 segmentos 
+    retlw   0b01000111		; Valor para F en display de 7 segmentos
     
 END
